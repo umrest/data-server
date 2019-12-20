@@ -15,7 +15,7 @@ class ConnectionHandler : public boost::enable_shared_from_this<ConnectionHandle
 {
 protected:
   tcp::socket sock;
-  enum { max_length = 1024 };
+  enum { max_length = 65536 };
   unsigned char data[max_length];
 
 public:
@@ -51,9 +51,15 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void handle_read_header(const boost::system::error_code& err, size_t bytes_transferred)
   {
     if (!err) {
+      std::cout << "Handle Read Header" << (int)data[0] << std::endl;
          CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[0];
-         //std::cout << "Recieved Type: " << type << std::endl;
          auto c = CommunicationDefinitions();
+         if(c.PACKET_SIZES.find(type) == c.PACKET_SIZES.end()){
+           std::cout << "Invalid type" << (int)data[0] << std::endl;
+           start_read();
+           return;
+         }
+
          int size = c.PACKET_SIZES.at(type);
 
          sock.async_read_some(

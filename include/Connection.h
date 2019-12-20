@@ -50,7 +50,8 @@ class Connection : public ConnectionHandler{
     void on_recv(CommunicationDefinitions::TYPE type){
         std::cout << "Recieved Type: " <<(int) type << std::endl;
         auto c = CommunicationDefinitions();
-        int size = c.PACKET_SIZES.at(type);
+        int size = c.PACKET_SIZES.at(type) + 1;
+        
 
         // Identifier
         if(type == CommunicationDefinitions::TYPE::INDENTIFIER){
@@ -82,8 +83,12 @@ class Connection : public ConnectionHandler{
              
          }
          // data sent to dashboard only
-         else if (type == CommunicationDefinitions::TYPE::DATAAGGREGATOR_STATE){
+         else if (type == CommunicationDefinitions::TYPE::DATAAGGREGATOR_STATE || type == CommunicationDefinitions::TYPE::VISION_IMAGE){
             network.send_to_dashboard(data, size);
+         }
+
+         else if (type == CommunicationDefinitions::TYPE::VISION_COMMAND){
+             network.send_to_vision(data, size);
          }
     }
 
