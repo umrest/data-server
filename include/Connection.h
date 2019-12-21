@@ -4,6 +4,8 @@
 
 #include "ConnectionHandler.h"
 
+#include "BitArray8.h"
+
 
 class Network{
     public:
@@ -34,6 +36,23 @@ if(vision.get() != nullptr){
              }
     }
 
+    void send_connection_status(){
+
+        BitArray8 status;
+        status.SetBit(0, (bool)hero);
+        status.SetBit(1, (bool)vision);
+        status.SetBit(2, (bool)dashboard);
+        status.SetBit(3, (bool)realsense);
+
+        unsigned char buf[128];
+
+        buf[0] = (int)CommunicationDefinitions::TYPE::DATAAGGREGATOR_STATE;
+        buf[1] = status.aByte;
+
+        send_to_hero(buf, 128);
+        send_to_dashboard(buf, 128);
+    }
+
     ConnectionHandler::ptr dashboard;
     ConnectionHandler::ptr hero;
     ConnectionHandler::ptr vision;
@@ -44,8 +63,34 @@ if(vision.get() != nullptr){
 class Connection : public ConnectionHandler{
     public:
     Network& network;
+    CommunicationDefinitions::IDENTIFIER identifier;
+    void on_close(){
+        if(identifier == CommunicationDefinitions::IDENTIFIER::DASHBOARD){
+            network.dashboard.reset();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::VISION){
+            network.vision.reset();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
+            network.hero.reset();
+        }
 
-    
+        network.send_connection_status();
+    }
+
+    void on_identifier(){
+        if(identifier == CommunicationDefinitions::IDENTIFIER::DASHBOARD){
+            network.dashboard = this->shared_from_this();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::VISION){
+            network.vision = this->shared_from_this();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
+            network.hero = this->shared_from_this();
+        }
+
+        network.send_connection_status();
+    }
 
     void on_recv(CommunicationDefinitions::TYPE type){
         std::cout << "Recieved Type: " <<(int) type << std::endl;
@@ -55,18 +100,13 @@ class Connection : public ConnectionHandler{
 
         // Identifier
         if(type == CommunicationDefinitions::TYPE::INDENTIFIER){
-            CommunicationDefinitions::IDENTIFIER identifier = (CommunicationDefinitions::IDENTIFIER)data[1];
+            CommunicationDefinitions::IDENTIFIER id = (CommunicationDefinitions::IDENTIFIER)data[1];
 
-            std::cout << "Recieved Identifier: " << (int)identifier << std::endl;
-            if(identifier == CommunicationDefinitions::IDENTIFIER::DASHBOARD){
-                network.dashboard = this->shared_from_this();
-            }
-             else if(identifier == CommunicationDefinitions::IDENTIFIER::VISION){
-                network.vision = this->shared_from_this();
-             }
-             else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
-                 network.hero = this->shared_from_this();
-             }
+            std::cout << "Recieved Identifier: " << (int)id << std::endl;
+
+            identifier = id;
+            on_identifier();
+
              
          }
 

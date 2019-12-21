@@ -27,6 +27,8 @@ ConnectionHandler(boost::asio::io_service& io_service): sock(io_service){
 typedef boost::shared_ptr<ConnectionHandler> ptr;
 
   virtual void on_recv(CommunicationDefinitions::TYPE type) = 0;
+  virtual void on_close() = 0;
+
 //socket creation
 
   tcp::socket& socket()
@@ -34,7 +36,6 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
     return sock;
   }
     void start_read(){
-      
         // read the header
         sock.async_read_some(
             boost::asio::buffer(data, 1),
@@ -69,9 +70,11 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
                         boost::asio::placeholders::error,
                         boost::asio::placeholders::bytes_transferred));
         
+        
     } else {
          std::cerr << "error: " << err.message() << std::endl;
          sock.close();
+         on_close();
     }
   }
   void handle_read(const boost::system::error_code& err, size_t bytes_transferred)
@@ -83,6 +86,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
     } else {
          std::cerr << "error: " << err.message() << std::endl;
          sock.close();
+         on_close();
     }
   }
 
@@ -93,13 +97,13 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
     } else {
        std::cerr << "error: " << err.message() << std::endl;
        sock.close();
+       on_close();
     }
   }
 
   void write(unsigned char* data, int size){
-    sock.async_write_some(boost::asio::buffer(data, size), boost::bind(&ConnectionHandler::handle_write,
-                        shared_from_this(),
-                        boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred));
+    boost::system::error_code err;
+    int transferred = sock.write_some(boost::asio::buffer(data, size), err);
+    handle_write(err, transferred);
   }
 };
