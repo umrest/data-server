@@ -51,11 +51,11 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void handle_read_header(const boost::system::error_code& err, size_t bytes_transferred)
   {
     if (!err) {
-      std::cout << "Handle Read Header" << (int)data[0] << std::endl;
+      //std::cout << "Handle Read Header" << (int)data[0] << std::endl;
          CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[0];
          auto c = CommunicationDefinitions();
          if(c.PACKET_SIZES.find(type) == c.PACKET_SIZES.end()){
-           std::cout << "Invalid type" << (int)data[0] << std::endl;
+           //std::cout << "Invalid type" << (int)data[0] << std::endl;
            start_read();
            return;
          }
@@ -89,7 +89,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void handle_write(const boost::system::error_code& err, size_t bytes_transferred)
   {
     if (!err) {
-       std::cout << "Send to client"<< std::endl;
+      //std::cout << "Send to client"<< std::endl;
     } else {
        std::cerr << "error: " << err.message() << std::endl;
        sock.close();
