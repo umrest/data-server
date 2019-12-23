@@ -3,8 +3,6 @@
 
 #include <iostream>
 
-
-#include "CommunicationDefinitions.h"
 #include "DataServer.h"
 
 

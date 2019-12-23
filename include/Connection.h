@@ -4,8 +4,7 @@
 
 #include "ConnectionHandler.h"
 
-#include "BitArray8.h"
-
+#include <comm/BitArray8.h>
 
 class Network{
     public:
@@ -94,12 +93,11 @@ class Connection : public ConnectionHandler{
 
     void on_recv(CommunicationDefinitions::TYPE type){
         std::cout << "Recieved Type: " <<(int) type << std::endl;
-        auto c = CommunicationDefinitions();
-        int size = c.PACKET_SIZES.at(type) + 1;
+        int size = CommunicationDefinitions::PACKET_SIZES.at(type) + 1;
         
 
         // Identifier
-        if(type == CommunicationDefinitions::TYPE::INDENTIFIER){
+        if(type == CommunicationDefinitions::TYPE::IDENTIFIER){
             CommunicationDefinitions::IDENTIFIER id = (CommunicationDefinitions::IDENTIFIER)data[1];
 
             std::cout << "Recieved Identifier: " << (int)id << std::endl;

@@ -5,11 +5,13 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <iostream>
 
-#include "CommunicationDefinitions.h"
+#include <comm/CommunicationDefinitions.h>
 
 
 using namespace boost::asio;
 using ip::tcp;
+
+using namespace comm;
 
 class ConnectionHandler : public boost::enable_shared_from_this<ConnectionHandler>
 {

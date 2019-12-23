@@ -10,12 +10,15 @@ file(GLOB data-server_SRC
 find_package( Boost COMPONENTS filesystem system REQUIRED )
 find_package (Threads REQUIRED)
 
+link_directories( /usr/local/lib/comm )
+
 include_directories(
     include
     ${BOOST_INCLUDE_DIRS}
+
 )
 
 add_executable( data-server ${data-server_SRC} )
 
-target_link_libraries( data-server
+target_link_libraries( data-server comm
 ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} )
