@@ -19,6 +19,7 @@ class CommunicationDefinitions
 
             VISION_COMMAND = 12,
             VISION_IMAGE = 13,
+            VISION_PROPERTIES = 14,
             INDENTIFIER = 250
 
         };
@@ -40,8 +41,9 @@ class CommunicationDefinitions
             {TYPE::ROBOT_STATE,  127},
 
             {TYPE::VISION_COMMAND,  127},
-            {TYPE::VISION_IMAGE,  65535},
+            {TYPE::VISION_IMAGE,  8191},
             {TYPE::INDENTIFIER,  127},
+            {TYPE::VISION_PROPERTIES, 127}
         };
 
         CommunicationDefinitions(){

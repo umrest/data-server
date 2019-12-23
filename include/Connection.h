@@ -123,11 +123,11 @@ class Connection : public ConnectionHandler{
              
          }
          // data sent to dashboard only
-         else if (type == CommunicationDefinitions::TYPE::DATAAGGREGATOR_STATE || type == CommunicationDefinitions::TYPE::VISION_IMAGE){
+         else if (type == CommunicationDefinitions::TYPE::DATAAGGREGATOR_STATE || type == CommunicationDefinitions::TYPE::VISION_IMAGE || type == CommunicationDefinitions::TYPE::ROBOT_STATE){
             network.send_to_dashboard(data, size);
          }
 
-         else if (type == CommunicationDefinitions::TYPE::VISION_COMMAND){
+         else if (type == CommunicationDefinitions::TYPE::VISION_COMMAND || type == CommunicationDefinitions::TYPE::VISION_PROPERTIES){
              network.send_to_vision(data, size);
          }
     }
