@@ -23,7 +23,7 @@ protected:
 public:
 
 ConnectionHandler(boost::asio::io_service& io_service): sock(io_service){
-
+  
 }
 
 typedef boost::shared_ptr<ConnectionHandler> ptr;
@@ -48,6 +48,8 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
     }
   void start()
   {
+    boost::asio::socket_base::send_buffer_size option(128);
+      sock.set_option(option);
     start_read();
   }
 
