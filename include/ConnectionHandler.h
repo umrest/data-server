@@ -37,10 +37,27 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   {
     return sock;
   }
-    void start_read(){
+
+  // RESTART read process
+  void start_read(){
+    key_pos = 0;
+    start_read_key();
+  }
+  //read key values
+    void start_read_key(){
         // read the header
         sock.async_read_some(
-            boost::asio::buffer(data, 1),
+            boost::asio::buffer(data + key_pos, 1),
+            boost::bind(&ConnectionHandler::handle_read_key,
+                        shared_from_this(),
+                        boost::asio::placeholders::error,
+                        boost::asio::placeholders::bytes_transferred));
+    }
+
+  // read header values
+    void start_read_header(){
+      sock.async_read_some(
+            boost::asio::buffer(data + 3, 1),
             boost::bind(&ConnectionHandler::handle_read_header,
                         shared_from_this(),
                         boost::asio::placeholders::error,
@@ -53,14 +70,44 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
     start_read();
   }
 
+  int key_pos = 0;
+  
+  void handle_read_key(const boost::system::error_code& err, size_t bytes_transferred){
+    if (!err) {
+      //std::cout << key_pos << " " << (int)data[key_pos] << std::endl;
+      if(CommunicationDefinitions::key[key_pos] == data[key_pos]){
+        key_pos++;
+      }
+      else{
+        std::cout << "Invalid Key..." << (int)data[0] << " " << (int)data[1] << " " << (int)data[2] << std::endl;
+        start_read();
+        return;
+      }
+      if(key_pos >= 3){
+        //std::cout << "Valid Key..." << std::endl;
+        start_read_header();
+      }
+      else{
+        start_read_key();
+      }
+    }
+
+    else {
+         std::cerr << "error: " << err.message() << std::endl;
+         sock.close();
+         on_close();
+    }
+
+  }
+
   void handle_read_header(const boost::system::error_code& err, size_t bytes_transferred)
   {
     if (!err) {
       //std::cout << "Handle Read Header" << (int)data[0] << std::endl;
-         CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[0];
+         CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[3];
          auto c = CommunicationDefinitions();
          if(c.PACKET_SIZES.find(type) == c.PACKET_SIZES.end()){
-           //std::cout << "Invalid type" << (int)data[0] << std::endl;
+           std::cout << "Invalid type" << (int)data[0] << std::endl;
            start_read();
            return;
          }
@@ -68,7 +115,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
          int size = c.PACKET_SIZES.at(type);
 
          sock.async_read_some(
-            boost::asio::buffer(data + 1, size),
+            boost::asio::buffer(data + 4, size),
                 boost::bind(&ConnectionHandler::handle_read,
                         shared_from_this(),
                         boost::asio::placeholders::error,
@@ -84,7 +131,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void handle_read(const boost::system::error_code& err, size_t bytes_transferred)
   {
     if (!err) {
-         CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[0];
+         CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[3];
          on_recv(type);
          start_read();
     } else {
@@ -106,7 +153,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   }
 
   void write(unsigned char* data, int size){
-    std::cout << "Sending Type: " << (int)data[0] << std::endl;
+    //std::cout << "Sending Type: " << (int)data[3] << std::endl;
     boost::system::error_code err;
     int transferred = sock.write_some(boost::asio::buffer(data, size), err);
     handle_write(err, transferred);
