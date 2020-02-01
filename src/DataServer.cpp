@@ -13,7 +13,7 @@ void DataServer::start_accept()
         boost::asio::placeholders::error));
   }
 
-DataServer::DataServer(boost::asio::io_service& io_service) : acceptor_(io_service, tcp::endpoint(tcp::v4(), 8091))
+DataServer::DataServer(boost::asio::io_service& io_service) : acceptor_(io_service, tcp::endpoint(tcp::v4(), 8091)), network(io_service)
 {
     start_accept();
 }
