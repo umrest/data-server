@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <set>
@@ -7,50 +8,69 @@
 #include <comm/BitArray8.h>
 #include <comm/DataServer.h>
 
-class Network
-{
-public:
-    Network()
-    {
+#include <mutex>
+
+#include <chrono>
+
+class Network{
+    private:
+       
+       boost::asio::deadline_timer timer;
+       std::chrono::time_point<std::chrono::high_resolution_clock> sent_connection_status;
+    public:
+    Network(boost::asio::io_service& io_service) : timer(io_service, boost::posix_time::seconds(1)){
+        start_timer();
+  
     }
 
-    void add()
-    {
+    void start_timer(){
+        timer.expires_from_now(boost::posix_time::seconds(1));
+        timer.async_wait(boost::bind(&Network::timer_tick, this, _1));
     }
 
-    void send_to_dashboard(unsigned char *data, int size)
-    {
-        for (auto &d : dashboard)
-        {
-            if (d.get() != nullptr)
-            {
+    void timer_tick(const boost::system::error_code &err){
+        send_connection_status();
+
+        start_timer();
+    }
+
+    void add(){
+
+    }
+
+    void send_to_dashboard(unsigned char* data, int size){
+        connect_lock.lock();
+        for(auto &d : dashboard){
+            if(d.get() != nullptr){
                 d.get()->write(data, size);
             }
         }
+        connect_lock.unlock();
+            
     }
 
-    void send_to_hero(unsigned char *data, int size)
-    {
-        if (hero.get() != nullptr)
-        {
-            hero.get()->write(data, size);
-        }
+    void send_to_hero(unsigned char* data, int size){
+        connect_lock.lock();
+if(tcpserial.get() != nullptr){
+                 tcpserial.get()->write(data, size);
+             }
+             connect_lock.unlock();
     }
 
-    void send_to_vision(unsigned char *data, int size)
-    {
-        if (vision.get() != nullptr)
-        {
+     void send_to_vision(unsigned char* data, int size){
+        connect_lock.lock();
+        if(vision.get() != nullptr){
             vision.get()->write(data, size);
         }
+        connect_lock.unlock();
     }
 
-    void send_to_datasaver(unsigned char *data, int size)
-    {
-        if (datasaver.get() != nullptr)
-        {
+    void send_to_datasaver(unsigned char* data, int size){
+        connect_lock.lock();
+        if(datasaver.get() != nullptr){
             datasaver.get()->write(data, size);
         }
+        connect_lock.unlock();
     }
 
     void send_connection_status()
@@ -62,31 +82,48 @@ public:
         data_server.connected_status.SetBit(2, dashboard.size() > 0);
         data_server.connected_status.SetBit(3, (bool)realsense);
 
-        auto data = data_server.Serialize();
+        BitArray8 status;
+        auto now = std::chrono::high_resolution_clock::now();
+        // if we have recieved a message in the last 5 seconds, the hero is "connected"
+        bool hero_connected = std::chrono::duration_cast<std::chrono::seconds>(now - tcpserial_message_recieved).count() < 1;
+        status.SetBit(0, hero_connected);
+        status.SetBit(1, (bool)vision);
+        status.SetBit(2, dashboard.size() > 0);
+        status.SetBit(3, (bool)realsense);
+        status.SetBit(4, (bool)tcpserial);
 
         send_to_hero(comm::CommunicationDefinitions::key, 3);
         send_to_dashboard(comm::CommunicationDefinitions::key, 3);
 
-        send_to_hero(&data[0], data.size());
-        send_to_dashboard(&data[0], data.size());
+//        send_to_hero(buf, 131);
+        send_to_dashboard(buf, 131);
     }
 
     std::set<ConnectionHandler::ptr> dashboard;
-    ConnectionHandler::ptr hero;
+    ConnectionHandler::ptr tcpserial;
     ConnectionHandler::ptr vision;
     ConnectionHandler::ptr realsense;
     ConnectionHandler::ptr datasaver;
+    
+    // Last Message Recieved
+    std::chrono::time_point<std::chrono::high_resolution_clock> dashboard_message_recieved;
+    std::chrono::time_point<std::chrono::high_resolution_clock> tcpserial_message_recieved;
+    std::chrono::time_point<std::chrono::high_resolution_clock> vision_message_recieved;
+    std::chrono::time_point<std::chrono::high_resolution_clock> realsense_message_recieved;
+    std::chrono::time_point<std::chrono::high_resolution_clock> dataserver_message_recieved;
+
+    // prevent sending on a disconnected or connecting connection (which causes segfault)
+    std::mutex connect_lock;
+
 };
 
-class Connection : public ConnectionHandler
-{
-public:
-    Network &network;
-    comm::CommunicationDefinitions::IDENTIFIER identifier;
-    void on_close()
-    {
-        if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DASHBOARD)
-        {
+class Connection : public ConnectionHandler{
+    public:
+    Network& network;
+    CommunicationDefinitions::IDENTIFIER identifier;
+    void on_close(){
+        network.connect_lock.lock();
+        if(identifier == CommunicationDefinitions::IDENTIFIER::DASHBOARD){
             auto it = network.dashboard.find(this->shared_from_this());
             if (it != network.dashboard.end())
             {
@@ -97,9 +134,8 @@ public:
         {
             network.vision.reset();
         }
-        else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::TCPSERIAL)
-        {
-            network.hero.reset();
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
+            network.tcpserial.reset();
         }
         if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DATASAVER)
         {
@@ -107,9 +143,13 @@ public:
             network.datasaver.reset();
         }
 
+        network.connect_lock.unlock();
+
         network.send_connection_status();
 
         key_pos = 0;
+
+        
     }
 
     void on_identifier()
@@ -122,9 +162,8 @@ public:
         {
             network.vision = this->shared_from_this();
         }
-        else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::TCPSERIAL)
-        {
-            network.hero = this->shared_from_this();
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
+            network.tcpserial = this->shared_from_this();
         }
         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DATASAVER)
         {
@@ -134,10 +173,33 @@ public:
         network.send_connection_status();
     }
 
-    void on_recv(comm::CommunicationDefinitions::TYPE type)
-    {
-        std::cout << "Recieved Type: " <<(int) type << std::endl;
-        int size = comm::CommunicationDefinitions::PACKET_SIZES.at(type) + 4;
+    void update_recieved_timestamp(){
+        if(identifier == CommunicationDefinitions::IDENTIFIER::DASHBOARD){
+            network.dashboard_message_recieved = std::chrono::high_resolution_clock::now();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::VISION){
+            network.vision_message_recieved = std::chrono::high_resolution_clock::now();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
+            network.tcpserial_message_recieved = std::chrono::high_resolution_clock::now();
+        }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::DATASAVER){
+            network.dataserver_message_recieved = std::chrono::high_resolution_clock::now();
+        }
+    }
+
+
+
+    
+
+    void on_recv(CommunicationDefinitions::TYPE type){
+        update_recieved_timestamp();
+
+        
+
+        //std::cout << "Recieved Type: " <<(int) type << std::endl;
+        int size = CommunicationDefinitions::PACKET_SIZES.at(type) + 4;
+        
 
         // Identifier
         if (type == comm::CommunicationDefinitions::TYPE::IDENTIFIER)
@@ -169,16 +231,19 @@ public:
             network.send_to_dashboard(data, size);
         }
 
-        else if (type == comm::CommunicationDefinitions::TYPE::ROBOT_STATE)
-        {
-            network.send_to_datasaver(data, size);
-            network.send_to_dashboard(data, size);
-        }
+         else if (type == CommunicationDefinitions::TYPE::ROBOT_STATE){
+             
+             network.send_to_dashboard(data, size);
+         }
 
-        else if (type == comm::CommunicationDefinitions::TYPE::VISION_COMMAND || type == comm::CommunicationDefinitions::TYPE::VISION_PROPERTIES)
-        {
-            network.send_to_vision(data, size);
-        }
+         else if (type == CommunicationDefinitions::TYPE::SENSOR_STATE){
+             network.send_to_dashboard(data, size);
+             network.send_to_datasaver(data, size);
+         }
+
+         else if (type == CommunicationDefinitions::TYPE::VISION_COMMAND || type == CommunicationDefinitions::TYPE::VISION_PROPERTIES){
+             network.send_to_vision(data, size);
+         }
     }
 
     // creating the pointer
