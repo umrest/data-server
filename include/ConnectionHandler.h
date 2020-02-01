@@ -82,7 +82,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
         return;
       }
       if(key_pos >= 3){
-        std::cout << "Valid Key..." << std::endl;
+        //std::cout << "Valid Key..." << std::endl;
         start_read_header();
       }
       else{

@@ -77,26 +77,23 @@ if(tcpserial.get() != nullptr){
     {
         comm::DataServer data_server;
 
-        data_server.connected_status.SetBit(0, (bool)hero);
-        data_server.connected_status.SetBit(1, (bool)vision);
-        data_server.connected_status.SetBit(2, dashboard.size() > 0);
-        data_server.connected_status.SetBit(3, (bool)realsense);
-
-        BitArray8 status;
         auto now = std::chrono::high_resolution_clock::now();
         // if we have recieved a message in the last 5 seconds, the hero is "connected"
         bool hero_connected = std::chrono::duration_cast<std::chrono::seconds>(now - tcpserial_message_recieved).count() < 1;
-        status.SetBit(0, hero_connected);
-        status.SetBit(1, (bool)vision);
-        status.SetBit(2, dashboard.size() > 0);
-        status.SetBit(3, (bool)realsense);
-        status.SetBit(4, (bool)tcpserial);
+        data_server.connected_status.SetBit(0, hero_connected);
+        data_server.connected_status.SetBit(1, (bool)vision);
+        data_server.connected_status.SetBit(2, dashboard.size() > 0);
+        data_server.connected_status.SetBit(3, (bool)realsense);
+        data_server.connected_status.SetBit(4, (bool)tcpserial);;
+        
 
-        send_to_hero(comm::CommunicationDefinitions::key, 3);
+        //send_to_hero(comm::CommunicationDefinitions::key, 3);
+        //        send_to_hero(buf, 131);
+
         send_to_dashboard(comm::CommunicationDefinitions::key, 3);
 
-//        send_to_hero(buf, 131);
-        send_to_dashboard(buf, 131);
+        auto data = data_server.Serialize();
+        send_to_dashboard(&data[0], data.size());
     }
 
     std::set<ConnectionHandler::ptr> dashboard;
