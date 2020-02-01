@@ -8,10 +8,8 @@
 #include <comm/CommunicationDefinitions.h>
 
 
-using namespace boost::asio;
-using ip::tcp;
-
-using namespace comm;
+using boost::asio::ip::tcp;
+using comm::CommunicationDefinitions;
 
 class ConnectionHandler : public boost::enable_shared_from_this<ConnectionHandler>
 {
@@ -28,7 +26,7 @@ ConnectionHandler(boost::asio::io_service& io_service): sock(io_service){
 
 typedef boost::shared_ptr<ConnectionHandler> ptr;
 
-  virtual void on_recv(CommunicationDefinitions::TYPE type) = 0;
+  virtual void on_recv(comm::CommunicationDefinitions::TYPE type) = 0;
   virtual void on_close() = 0;
 
 //socket creation
@@ -75,7 +73,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void handle_read_key(const boost::system::error_code& err, size_t bytes_transferred){
     if (!err) {
       //std::cout << key_pos << " " << (int)data[key_pos] << std::endl;
-      if(CommunicationDefinitions::key[key_pos] == data[key_pos]){
+      if(comm::CommunicationDefinitions::key[key_pos] == data[key_pos]){
         key_pos++;
       }
       else{
@@ -84,7 +82,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
         return;
       }
       if(key_pos >= 3){
-        //std::cout << "Valid Key..." << std::endl;
+        std::cout << "Valid Key..." << std::endl;
         start_read_header();
       }
       else{
@@ -104,8 +102,8 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   {
     if (!err) {
       //std::cout << "Handle Read Header" << (int)data[0] << std::endl;
-         CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[3];
-         auto c = CommunicationDefinitions();
+         comm::CommunicationDefinitions::TYPE type = (comm::CommunicationDefinitions::TYPE)data[3];
+         auto c = comm::CommunicationDefinitions();
          if(c.PACKET_SIZES.find(type) == c.PACKET_SIZES.end()){
            std::cout << "Invalid type" << (int)data[0] << std::endl;
            start_read();
@@ -131,7 +129,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void handle_read(const boost::system::error_code& err, size_t bytes_transferred)
   {
     if (!err) {
-         CommunicationDefinitions::TYPE type = (CommunicationDefinitions::TYPE)data[3];
+         comm::CommunicationDefinitions::TYPE type = (comm::CommunicationDefinitions::TYPE)data[3];
          on_recv(type);
          start_read();
     } else {
