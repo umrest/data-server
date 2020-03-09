@@ -153,7 +153,7 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void write(unsigned char* data, int size){
     //std::cout << "Sending Type: " << (int)data[3] << std::endl;
     boost::system::error_code err;
-    int transferred = sock.write_some(boost::asio::buffer(data, size), err);
+    int transferred = boost::asio::write(sock, boost::asio::buffer(data, size), err);
     handle_write(err, transferred);
   }
 };
