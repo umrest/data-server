@@ -7,12 +7,15 @@
 
 
 
-int main(){
-
+int main(int argc, char const *argv[]){
+int port = 8091;
+if(argc > 1){
+  port = atoi(argv[1]);
+}
 try
     {
     boost::asio::io_service io_service;  
-    DataServer server(io_service);
+    DataServer server(io_service, port);
     io_service.run();
     }
   catch(std::exception& e)

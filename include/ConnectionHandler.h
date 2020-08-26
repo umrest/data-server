@@ -21,7 +21,6 @@ protected:
 public:
 
 ConnectionHandler(boost::asio::io_service& io_service): sock(io_service){
-  
 }
 
 typedef boost::shared_ptr<ConnectionHandler> ptr;
@@ -153,7 +152,12 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void write(unsigned char* data, int size){
     //std::cout << "Sending Type: " << (int)data[3] << std::endl;
     boost::system::error_code err;
-    int transferred = sock.write_some(boost::asio::buffer(data, size), err);
-    handle_write(err, transferred);
+
+      boost::asio::const_buffer d = boost::asio::buffer(data, size);
+
+    sock.async_write_some( d, boost::bind(&ConnectionHandler::handle_write,
+                        shared_from_this() ,
+                        boost::asio::placeholders::error,
+                        boost::asio::placeholders::bytes_transferred) );
   }
 };

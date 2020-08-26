@@ -45,6 +45,7 @@ class Network{
                 d.get()->write(data, size);
             }
         }
+        
         connect_lock.unlock();
             
     }
@@ -73,6 +74,14 @@ if(tcpserial.get() != nullptr){
         connect_lock.unlock();
     }
 
+    void send_to_hardware(unsigned char* data, int size){
+        connect_lock.lock();
+        if(hardware.get() != nullptr){
+            hardware.get()->write(data, size);
+        }
+        connect_lock.unlock();
+    }
+
     void send_connection_status()
     {
         comm::DataServer data_server;
@@ -84,7 +93,8 @@ if(tcpserial.get() != nullptr){
         data_server.connected_status.SetBit(1, (bool)vision);
         data_server.connected_status.SetBit(2, dashboard.size() > 0);
         data_server.connected_status.SetBit(3, (bool)realsense);
-        data_server.connected_status.SetBit(4, (bool)tcpserial);;
+        data_server.connected_status.SetBit(4, (bool)tcpserial);
+        data_server.connected_status.SetBit(5, (bool)hardware);
         
 
         //send_to_hero(comm::CommunicationDefinitions::key, 3);
@@ -96,11 +106,12 @@ if(tcpserial.get() != nullptr){
         send_to_dashboard(&data[0], data.size());
     }
 
-    std::set<ConnectionHandler::ptr> dashboard;
+     std::set<ConnectionHandler::ptr> dashboard;
     ConnectionHandler::ptr tcpserial;
     ConnectionHandler::ptr vision;
     ConnectionHandler::ptr realsense;
     ConnectionHandler::ptr datasaver;
+    ConnectionHandler::ptr hardware;
     
     // Last Message Recieved
     std::chrono::time_point<std::chrono::high_resolution_clock> dashboard_message_recieved;
@@ -134,10 +145,19 @@ class Connection : public ConnectionHandler{
         else if(identifier == CommunicationDefinitions::IDENTIFIER::TCPSERIAL){
             network.tcpserial.reset();
         }
-        if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DATASAVER)
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::REALSENSE){
+            network.realsense.reset();
+        }
+        else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DATASAVER)
         {
 
             network.datasaver.reset();
+        }
+        
+        else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::HARDWARE)
+        {
+
+            network.hardware.reset();
         }
 
         network.connect_lock.unlock();
@@ -153,7 +173,7 @@ class Connection : public ConnectionHandler{
     {
         if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DASHBOARD)
         {
-            network.dashboard.insert(this->shared_from_this());
+           network.dashboard.insert(this->shared_from_this());
         }
         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::VISION)
         {
@@ -165,6 +185,14 @@ class Connection : public ConnectionHandler{
         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::DATASAVER)
         {
             network.datasaver = this->shared_from_this();
+        }
+         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::REALSENSE)
+        {
+            network.realsense = this->shared_from_this();
+        }
+         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::HARDWARE)
+        {
+            network.hardware = this->shared_from_this();
         }
 
         network.send_connection_status();
@@ -183,6 +211,9 @@ class Connection : public ConnectionHandler{
         else if(identifier == CommunicationDefinitions::IDENTIFIER::DATASAVER){
             network.dataserver_message_recieved = std::chrono::high_resolution_clock::now();
         }
+        else if(identifier == CommunicationDefinitions::IDENTIFIER::REALSENSE){
+            network.realsense_message_recieved = std::chrono::high_resolution_clock::now();
+        }
     }
 
 
@@ -194,7 +225,7 @@ class Connection : public ConnectionHandler{
 
         
 
-        //std::cout << "Recieved Type: " <<(int) type << std::endl;
+        std::cout << "Recieved Type: " <<(int) type << std::endl;
         int size = CommunicationDefinitions::PACKET_SIZES.at(type) + 4;
         
 
@@ -240,6 +271,9 @@ class Connection : public ConnectionHandler{
 
          else if (type == CommunicationDefinitions::TYPE::VISION_COMMAND || type == CommunicationDefinitions::TYPE::VISION_PROPERTIES){
              network.send_to_vision(data, size);
+         }
+         else if (type == CommunicationDefinitions::TYPE::HARDWARE){
+             network.send_to_hardware(data,size);
          }
     }
 

@@ -10,7 +10,7 @@ private:
    void start_accept();
 public:
 //constructor for accepting connection from client
-  DataServer(boost::asio::io_service& io_service);
+  DataServer(boost::asio::io_service& io_service, int port);
   void handle_accept(ConnectionHandler::ptr connection, const boost::system::error_code& err);
 
   Network network;
