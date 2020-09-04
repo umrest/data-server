@@ -6,7 +6,7 @@
 #include "ConnectionHandler.h"
 
 #include <comm/BitArray8.h>
-#include <comm/DataServer.h>
+#include <comm/Data_Server.h>
 
 #include <mutex>
 
@@ -84,23 +84,26 @@ if(tcpserial.get() != nullptr){
 
     void send_connection_status()
     {
-        comm::DataServer data_server;
+        comm::Data_Server data_server;
 
         auto now = std::chrono::high_resolution_clock::now();
         // if we have recieved a message in the last 5 seconds, the hero is "connected"
         bool hero_connected = std::chrono::duration_cast<std::chrono::seconds>(now - tcpserial_message_recieved).count() < 1;
-        data_server.connected_status.SetBit(0, hero_connected);
-        data_server.connected_status.SetBit(1, (bool)vision);
-        data_server.connected_status.SetBit(2, dashboard.size() > 0);
-        data_server.connected_status.SetBit(3, (bool)realsense);
-        data_server.connected_status.SetBit(4, (bool)tcpserial);
-        data_server.connected_status.SetBit(5, (bool)hardware);
+        data_server._connected_status.SetBit(0, hero_connected);
+        data_server._connected_status.SetBit(1, (bool)vision);
+        data_server._connected_status.SetBit(2, dashboard.size() > 0);
+        data_server._connected_status.SetBit(3, (bool)realsense);
+        data_server._connected_status.SetBit(4, (bool)tcpserial);
+        data_server._connected_status.SetBit(5, (bool)hardware);
         
 
         //send_to_hero(comm::CommunicationDefinitions::key, 3);
         //        send_to_hero(buf, 131);
 
         send_to_dashboard(comm::CommunicationDefinitions::key, 3);
+        
+        uint8_t type = (uint8_t)(data_server.type());
+        send_to_dashboard(&type, 1);
 
         auto data = data_server.Serialize();
         send_to_dashboard(&data[0], data.size());
@@ -241,7 +244,7 @@ class Connection : public ConnectionHandler{
         }
 
         // Data sent to hero
-        else if (type == comm::CommunicationDefinitions::TYPE::JOYSTICK || type == comm::CommunicationDefinitions::TYPE::DASHBOARD_DATA)
+        else if (type == comm::CommunicationDefinitions::TYPE::JOYSTICK || type == comm::CommunicationDefinitions::TYPE::DASHBOARD)
         {
             network.send_to_hero(data, size);
         }
@@ -254,16 +257,12 @@ class Connection : public ConnectionHandler{
             network.send_to_dashboard(data, size);
         }
         // data sent to dashboard only
-        else if (type == comm::CommunicationDefinitions::TYPE::DATAAGGREGATOR_STATE || type == comm::CommunicationDefinitions::TYPE::VISION_IMAGE)
+        else if (type == comm::CommunicationDefinitions::TYPE::DATA_SERVER || type == comm::CommunicationDefinitions::TYPE::VISION_IMAGE || type == comm::CommunicationDefinitions::TYPE::REALSENSE)
         {
             network.send_to_dashboard(data, size);
         }
 
-         else if (type == CommunicationDefinitions::TYPE::ROBOT_STATE){
-             
-             network.send_to_dashboard(data, size);
-         }
-
+    
          else if (type == CommunicationDefinitions::TYPE::SENSOR_STATE){
              network.send_to_dashboard(data, size);
              network.send_to_datasaver(data, size);
