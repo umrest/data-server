@@ -82,6 +82,22 @@ if(tcpserial.get() != nullptr){
         connect_lock.unlock();
     }
 
+     void send_to_realsense(unsigned char* data, int size){
+        connect_lock.lock();
+        if(realsense.get() != nullptr){
+            realsense.get()->write(data, size);
+        }
+        connect_lock.unlock();
+    }
+
+     void send_to_navigation(unsigned char* data, int size){
+        connect_lock.lock();
+        if(navigation.get() != nullptr){
+            navigation.get()->write(data, size);
+        }
+        connect_lock.unlock();
+    }
+
     void send_connection_status()
     {
         comm::Data_Server data_server;
@@ -95,6 +111,7 @@ if(tcpserial.get() != nullptr){
         data_server._connected_status.SetBit(3, (bool)realsense);
         data_server._connected_status.SetBit(4, (bool)tcpserial);
         data_server._connected_status.SetBit(5, (bool)hardware);
+        data_server._connected_status.SetBit(6, (bool)navigation);
         
 
         //send_to_hero(comm::CommunicationDefinitions::key, 3);
@@ -115,6 +132,7 @@ if(tcpserial.get() != nullptr){
     ConnectionHandler::ptr realsense;
     ConnectionHandler::ptr datasaver;
     ConnectionHandler::ptr hardware;
+    ConnectionHandler::ptr navigation;
     
     // Last Message Recieved
     std::chrono::time_point<std::chrono::high_resolution_clock> dashboard_message_recieved;
@@ -162,6 +180,11 @@ class Connection : public ConnectionHandler{
 
             network.hardware.reset();
         }
+         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::NAVIGATION)
+        {
+
+            network.navigation.reset();
+        }
 
         network.connect_lock.unlock();
 
@@ -196,6 +219,10 @@ class Connection : public ConnectionHandler{
          else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::HARDWARE)
         {
             network.hardware = this->shared_from_this();
+        }
+         else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::NAVIGATION)
+        {
+            network.navigation = this->shared_from_this();
         }
 
         network.send_connection_status();
@@ -253,16 +280,18 @@ class Connection : public ConnectionHandler{
         else if (type == comm::CommunicationDefinitions::TYPE::VISION)
         {
             network.send_to_hero(data, size);
-
             network.send_to_dashboard(data, size);
+            network.send_to_navigation(data, size);
         }
         // data sent to dashboard only
-        else if (type == comm::CommunicationDefinitions::TYPE::DATA_SERVER || type == comm::CommunicationDefinitions::TYPE::VISION_IMAGE || type == comm::CommunicationDefinitions::TYPE::REALSENSE)
+        else if (type == comm::CommunicationDefinitions::TYPE::DATA_SERVER || type == comm::CommunicationDefinitions::TYPE::VISION_IMAGE)
         {
             network.send_to_dashboard(data, size);
         }
-
-    
+        else if( type == comm::CommunicationDefinitions::TYPE::REALSENSE){
+            network.send_to_dashboard(data, size);
+             network.send_to_navigation(data, size);
+        }
          else if (type == CommunicationDefinitions::TYPE::SENSOR_STATE){
              network.send_to_dashboard(data, size);
              network.send_to_datasaver(data, size);
@@ -273,6 +302,9 @@ class Connection : public ConnectionHandler{
          }
          else if (type == CommunicationDefinitions::TYPE::HARDWARE){
              network.send_to_hardware(data,size);
+         }
+           else if (type == CommunicationDefinitions::TYPE::REALSENSE_COMMAND){
+             network.send_to_realsense(data,size);
          }
     }
 
