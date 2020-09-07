@@ -306,6 +306,9 @@ class Connection : public ConnectionHandler{
            else if (type == CommunicationDefinitions::TYPE::REALSENSE_COMMAND){
              network.send_to_realsense(data,size);
          }
+          else if (type == CommunicationDefinitions::TYPE::NAVIGATION_STATE || type == CommunicationDefinitions::TYPE::NAVIGATION_OBSTACLES || type == CommunicationDefinitions::TYPE::NAVIGATION_PATH){
+             network.send_to_dashboard(data,size);
+         }
     }
 
     // creating the pointer
