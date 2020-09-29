@@ -63,7 +63,8 @@ typedef boost::shared_ptr<ConnectionHandler> ptr;
   void start()
   {
     boost::asio::socket_base::send_buffer_size option(128);
-      sock.set_option(option);
+    sock.set_option(option);
+    sock.set_option(boost::asio::ip::tcp::no_delay(true));
     start_read();
   }
 

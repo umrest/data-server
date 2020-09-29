@@ -97,6 +97,13 @@ if(tcpserial.get() != nullptr){
         }
         connect_lock.unlock();
     }
+     void send_to_slam(unsigned char* data, int size){
+        connect_lock.lock();
+        if(slam.get() != nullptr){
+            slam.get()->write(data, size);
+        }
+        connect_lock.unlock();
+    }
 
     void send_connection_status()
     {
@@ -112,6 +119,7 @@ if(tcpserial.get() != nullptr){
         data_server._connected_status.SetBit(4, (bool)tcpserial);
         data_server._connected_status.SetBit(5, (bool)hardware);
         data_server._connected_status.SetBit(6, (bool)navigation);
+        data_server._connected_status.SetBit(6, (bool)slam);
         
 
         //send_to_hero(comm::CommunicationDefinitions::key, 3);
@@ -133,6 +141,7 @@ if(tcpserial.get() != nullptr){
     ConnectionHandler::ptr datasaver;
     ConnectionHandler::ptr hardware;
     ConnectionHandler::ptr navigation;
+    ConnectionHandler::ptr slam;
     
     // Last Message Recieved
     std::chrono::time_point<std::chrono::high_resolution_clock> dashboard_message_recieved;
@@ -186,6 +195,11 @@ class Connection : public ConnectionHandler{
             network.navigation.reset();
         }
 
+        else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::SLAM)
+        {
+
+            network.slam.reset();
+        }
         network.connect_lock.unlock();
 
         network.send_connection_status();
@@ -223,6 +237,10 @@ class Connection : public ConnectionHandler{
          else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::NAVIGATION)
         {
             network.navigation = this->shared_from_this();
+        }
+        else if (identifier == comm::CommunicationDefinitions::IDENTIFIER::SLAM)
+        {
+            network.slam = this->shared_from_this();
         }
 
         network.send_connection_status();
@@ -281,7 +299,7 @@ class Connection : public ConnectionHandler{
         {
             network.send_to_hero(data, size);
             network.send_to_dashboard(data, size);
-            network.send_to_navigation(data, size);
+            network.send_to_slam(data, size);
         }
         // data sent to dashboard only
         else if (type == comm::CommunicationDefinitions::TYPE::DATA_SERVER || type == comm::CommunicationDefinitions::TYPE::VISION_IMAGE)
@@ -290,11 +308,11 @@ class Connection : public ConnectionHandler{
         }
         else if( type == comm::CommunicationDefinitions::TYPE::REALSENSE){
             network.send_to_dashboard(data, size);
-             network.send_to_navigation(data, size);
+            network.send_to_navigation(data, size);
         }
          else if (type == CommunicationDefinitions::TYPE::SENSOR_STATE){
              network.send_to_dashboard(data, size);
-             network.send_to_datasaver(data, size);
+             
          }
 
          else if (type == CommunicationDefinitions::TYPE::VISION_COMMAND || type == CommunicationDefinitions::TYPE::VISION_PROPERTIES){
@@ -306,9 +324,16 @@ class Connection : public ConnectionHandler{
            else if (type == CommunicationDefinitions::TYPE::REALSENSE_COMMAND){
              network.send_to_realsense(data,size);
          }
-          else if (type == CommunicationDefinitions::TYPE::NAVIGATION_STATE || type == CommunicationDefinitions::TYPE::NAVIGATION_OBSTACLES || type == CommunicationDefinitions::TYPE::NAVIGATION_PATH){
+         else if(type == CommunicationDefinitions::TYPE::SLAM_STATE){
+             network.send_to_dashboard(data,size);
+             network.send_to_navigation(data,size);
+            
+         }
+          else if (type == CommunicationDefinitions::TYPE::NAVIGATION_OBSTACLES || type == CommunicationDefinitions::TYPE::NAVIGATION_PATH){
              network.send_to_dashboard(data,size);
          }
+
+         network.send_to_datasaver(data, size);
     }
 
     // creating the pointer
